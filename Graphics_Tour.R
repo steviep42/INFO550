@@ -1,5 +1,118 @@
+# Get restuarants.db from http://steviep42.bitbucket.org/YOUTUBE.DIR/restaurants.db
+sqlite3 restuarants.db
+# SQL
 
-data(mtcars)
+select count(score) as 'number_of_inspections' from inspections;
+
+# How many scores were below 70 ?
+
+select count(score) as score70 from inspections where score < 70;
+
+# Okay well WHO has the LOWEST numeric score overall ? 
+
+select name, score from businesses, inspections where 
+businesses.business_id = inspections.business_id
+order by score limit 15;
+
+# How many violations exist for each restaurant ? 
+
+select name, count(violationid) from businesses, violations
+ where businesses.business_id = violations.business_id 
+ group by name limit 15;
+
+# Well that wasn't sorted. I want to know the place with the most violations
+
+ select name, count(violationid) as volcnt from businesses, violations
+ where businesses.business_id = violations.business_id
+ group by name order by volcnt desc limit 15;
+ 
+
+# Wait a minute. So was it one Starbuck's location that got 327 violations ? 
+# Probably not. There are multiple Starbucks. How could we find out ? 
+ 
+# The DISTINCT function in SQL will show us how many distinct business ids there are associated with any business containing ``STARBUCK'' in the name.
+ 
+select count(distinct(business_id)) from businesses
+ where name like '%STARBUCK%';
+ 
+ 
+# So there are 71 Starbucks in the area. The 327 violations are spread over them. 
+# But how many per each 
+ 
+ select count(distinct(business_id)) from businesses
+ where name like '%STARBUCK%';
+
+ select name, businesses.business_id, count(violationid) from 
+ businesses, violations where name like '%STARBUCK%' and 
+ businesses.business_id = violations.business_id group by 
+ businesses.business_id order by count(violationid) desc limit 10;
+ 
+# Let's determine how many inspections took place between 
+# March 27, 2014 and April 10, 2014 ? 
+
+select count(*) from inspections where strftime(date) > 
+   strftime('20140327') and strftime(date) < strftime('20140410');
+ 
+ 
+# Frequently we have missing values in data. It might be blank or have something like "NA". We
+# have to be on the lookout for this.
+ 
+select avg(score) from inspections limit 5;
+
+select avg(score) from inspections where score not like '%NA%';
+ 
+select postal_code, avg(score) as mean from businesses, 
+ inspections where businesses.business_id = inspections.business_id 
+ and score not like '%NA%' group by postal_code order by mean 
+ asc limit 5; 
+ 
+ 
+# Check this out. If you have a n SQLite database such as restaurants.db 
+# you can work with it using dplyr commands !
+   
+ library(dplyr)
+ mydb <- src_sqlite(path="restaurants.db")
+ mydb
+ 
+ bus <- tbl(mydb,"businesses")
+ ins <- tbl(mydb,"inspections")
+ vio <- tbl(mydb,"violations")
+ 
+ 
+# So we can join the inspections with the business ids to find out who 
+# some of the worst restaurants are in terms of score
+
+
+ head(ins)
+
+ head(bus)
+ 
+ # So we can join the inspections with the business ids to find out who some 
+ # of the worst restaurants are in terms of score
+
+inner_join(ins,bus) %>% arrange(score) %>% head(.,15) %>% 
+  select(score,name,address)
+ 
+# So we can join the violations and business tables to see the breakdown of violations across all Starbucks shops
+
+inner_join(vio,bus) %>% filter(name=="STARBUCKS COFFEE") %>% 
+  group_by(business_id) %>% 
+  summarize(count=n(violationid)) %>% arrange(desc(count))
+
+
+# Explanation of inner_join
+
+df1 <- data.frame(id=c(10,20,30,40,50),name=c("Marge","Julio","Giselle","Lisa","Chuck"))
+set.seed(123)
+df2 <- data.frame(id=c(10,10,30,20,40,10,40,40,10),measure=c(round(rnorm(9,10),2)))
+
+inner_join(df1,df2)
+
+left_join(df1,df2)
+
+### Graphics Section begins Here
+ 
+ data(mtcars)
 plot(mpg~wt, data=mtcars)
 
 #  As the weight of the automobile goes up the MPG goes down. It looks to be linear
@@ -81,8 +194,7 @@ abline(h=mean(mtcars$mpg),lty=2)
 # We then label them using numbers to be given to the cex parameter
 # which controls the size of the points being plotted
 
-sizes <- cut(mtcars$wt,breaks=quantile(mtcars$wt),
-include.lowest=TRUE,label=c(0.5,1.0,1.5,1.9))
+sizes <- cut(mtcars$wt,breaks=quantile(mtcars$wt), include.lowest=TRUE,label=c(0.5,1.0,1.5,1.9))
 
 sizes 
 
@@ -816,8 +928,8 @@ newnydf <- melt(nydf[1:15,],id.vars=c("crimes","V3"))
 
 names(newnydf)[3] <- "AM_PM"
 
-ggplot(newnydf,aes(x=crimes,y=value,fill=AM_PM)) + geom_bar(stat="identity") 
-+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(newnydf,aes(x=crimes,y=value,fill=AM_PM)) + geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # What about the nacrotics offense ? 
 
@@ -828,8 +940,8 @@ narc2 <- as.data.frame(table(narc$Description))
 
 narc2$Var1 <- reorder(narc2$Var1,-narc2$Freq)
 
-ggplot(narc2,aes(x=Var1,y=Freq)) + geom_bar(stat="identity") 
-+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(narc2,aes(x=Var1,y=Freq)) + geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Uggh - too many. Let's just look at the top 20 Descriptions
 
