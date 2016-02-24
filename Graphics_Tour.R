@@ -140,8 +140,7 @@ ylab <- "MPG"
 
 # Do the actual plot
 
-plot(mtcars$wt,mtcars$mpg,pch=19,
-col="blue",main=title,xlab=xlab,ylab=ylab)
+plot(mtcars$wt,mtcars$mpg,pch=19, col="blue",main=title,xlab=xlab,ylab=ylab)
 
 grid()  # Draw a grid
 
