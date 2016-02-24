@@ -10,6 +10,7 @@ Here are some interesting links in support of the Graphics Tour
 
 [Hadley Wickham's Article on The Grammar of Graphics](http://stat405.had.co.nz/lectures/21-grammar-of-graphics.pdf)
 
+[Emory Link to Safari Books OnLine](http://pid.emory.edu/dzfb2)
 
 
 
