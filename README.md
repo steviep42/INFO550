@@ -2,6 +2,10 @@
 
 Here are some interesting links in support of the Graphics Tour
 
+[Link to Steve's Slide Deck for R Base Graphics](http://steviep42.bitbucket.org/bios545r_2016/LECTURES.DIR/BIOS545R_Spring_2016_Week_5_graphics_1.pdf)
+
+[Link to Steve's Slide Deck for Lattice Graphics](http://steviep42.bitbucket.org/bios545r_2016/LECTURES.DIR/BIOS545R_Spring_2016_Week_5_graphics_1.pdf)
+
 [Lattice Graphics](http://lmdvr.r-forge.r-project.org/figures/figures.html)
 
 [Graphics Cookbook for R](http://www.cookbook-r.com/)
