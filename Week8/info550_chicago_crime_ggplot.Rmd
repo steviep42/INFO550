@@ -1,0 +1,486 @@
+---
+title: "INFO 550 - Chicago Crime Investigation"
+author: Steve Pittard wsp@emory.edu
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chicago Crime Data
+
+Here we look at some data obtained from the City of Chicago Open Data Portal <https://data.cityofchicago.org/>. This is data that represents phone calls to the police during the year of 2012. There are more recent data available but we'll stick with this for now. Just pick a folder on your hard drive and download the data.
+
+### Getting the Data
+
+I've got a copy of the data stashed on my Bitbucket account but as just mentioned you could get updated information from the portal web site. This is restricted to dates between January 1, 2012 and December 31, 2012. 
+
+```{r eval=FALSE}
+url <- "http://steviep42.bitbucket.org/YOUTUBE.DIR/chi_crimes.csv"
+
+download.file(url,"chi_crimes.csv")
+
+```
+
+The file itself is about 81 megabytes. You can read this in using the **read.csv** function or maybe the **fread** function form the data.table package. It doesn't matter so much expcet that maybe **fread** will be much faster. Note that you can still use **dplyr** commands with a file created via data.table. 
+
+```{r}
+suppressMessages(library(dplyr))
+suppressMessages(library(lubridate))
+
+setwd("~/Downloads")
+library(dplyr)
+library(data.table)
+
+dt.chi <- fread("chi_crimes.csv")
+
+# While the following is not strictly necessary it is being careful
+# This converts the data.table into a dplyr table
+
+chi <- tbl_df(dt.chi)
+
+nrow(chi)   # How many rows ? 
+
+chi <- filter(chi,complete.cases(chi))
+
+```
+
+
+### Inspecting the Data
+
+The way the data is organzied is that each row represents a call to the police which may or may not result in an actual arrest. In any case there will be a case number assigned to the call and other information such as the Best, Ward, Block, and Community Area will be noted.  If there is an arrest it will be recorded and then it will be categorized according to an FBI code. The location of the call will be recorded in latitude and longitude. 
+
+So let's check this data frame out some more. For example what are the factors in this data frame ? Here I apply my little "recipe" to tell me how many unique values that each column takes on. Those that take on only a few different values might be good summary variables.
+
+```{r}
+
+# What are the factor
+sapply(chi, function(x) length(unique(x)))
+
+```
+
+From this perhaps variables like Arrest, Domestic, FBI Code, District, and Ward could be good summary variables. We don't really have any kind of measured data here. We do have lots of dates which at this point are actually character strings so let's turn them into dates and then work with them to get some more summary variables created. There are also some latitude and longitude information that we perhaps later use to draw some maps if we want. We'll consider that later. 
+
+## Creating Categories
+
+```{r}
+# Right now the dates and times are just a character string
+
+str(chi$Date)  
+
+# Note that the dates have a PM or AM string. Let's exploit that information to create 
+# a category that captures this information.
+
+chi <- mutate(chi, am_pm=ifelse(grepl("PM",Date),"PM","AM")) 
+
+# Let's turn them into actual dates and times using the lubridate package
+
+chi$Date <- parse_date_time(chi$Date,'%m/%d/%Y %I:%M:%S %p')
+
+range(chi$Date)
+```
+
+It's worth noting that we can use some functions from lubridate to further group the dates and times so we can do some more specific analysis. [Here](http://www.noamross.net/blog/2014/2/10/using-times-and-dates-in-r---presentation-code.html) is link to a tutorial on lubridate. Anyway try some of these:
+
+```{r}
+
+# List the first 5 records from the chi data table
+chi$Date %>% head
+
+# This will tell us what day of the week the given date and time represents
+chi$Date %>% weekdays %>% head
+
+# This will tell us what month the date and time falls into
+chi$Date %>% months %>% head
+
+# Let's add a factor to the data table/data frame that gives the month
+chi <- mutate(chi, Month=months(Date)) 
+
+unique(chi$Month)
+
+```
+
+## Let's Do Some Summarization
+
+Let's add in a few more factors based on the date since it will help us build some interesting tables as we try to understand the patterns in Chicago crime during the year of 2013. It is also important to understand how to work with dates since they wind up being important when looking at data. Not every data set will be a function of dates or be reliant upon them for interpretation but this one is. 
+
+It's also not necessary to create these categories in advance or make them part of the data frame. We could do this on the fly as we will see later. We will create a category to classify the quarter during which the call to the police occurred.
+
+```{r}
+chi <- mutate(chi, quarter=quarter(Date)) 
+
+chi <- mutate(chi, weekdays=weekdays(Date))
+
+chi %>% select(Month, am_pm, weekdays, quarter)
+```
+
+Now we can start to ask some basic questions to better understand the data. When we have lots of categories in our data we could make use of the **table()** function that is built into R. It's what we use to count the occurences within a group or between groups. Like when we need to create a contingency. For example let's focus on the "Arrest" variable to figure out how many Arrests happened.
+
+```{r}
+# This gives us a table of Arrests vs non-Arrests
+
+table(chi$Arrest)
+
+# And we could see the count of reported crimes according to FBI code
+
+table(chi$`FBI Code`)
+
+```
+
+Let's sort it and get the top 5 FBI codes by count. I don't know what the code actually mean but I found a description of them at [this URL](http://gis.chicagopolice.org/clearmap_crime_sums/crime_types.html)
+So it seems to me that the top 5 areas, at least by FBI codes, are: 
+
+* Larceny
+* Simple Battery
+* Vandalism
+* Drug Abuse
+* Misc Non-Index Offense
+
+But we'll dig deeper into the types of crimes in a little bit. 
+
+
+```{r}
+rev(sort(table(chi$`FBI Code`)))[1:5]
+```
+
+We could do two-way tables of course. This helps us look at relationships between categories or factors. 
+
+```{r}
+table(arrests=chi$Arrest,chi$am_pm)
+```
+
+
+## Some Minor Corrections
+
+Before we move forward with more summary consider that the names of the columns in the data frame are a little odd in that there are spaces in the names. This isthe case with "FBI Code", "Community Area","Primary Type", and a few others. 
+
+```{r}
+names(chi)
+
+```
+
+In reality this isn't so bad although unless you take this into consideration when you use commands like **table** it can cause some trouble. The following won't work. 
+
+```{r eval=FALSE}
+table(chi$FBI Code)
+Error: unexpected symbol in "table(chi$FBI Code"
+
+# But this will work
+
+table(chi$`FBI Code`)
+```
+
+Actually the problem in this case is because of the **fread** function from **data.table** package. The column names in the **chi_crimes.csv** file have period characters in the column names. For whatever reason **fread** turns these into spaces when it reads in the data possibly because the **data.table** package uses the period character as a prefix to some of it's aggregation functions. 
+
+This isn't a big deal but when you first encounter this kind of behavior it can be very confusing. We can fix this by changing the names of the columns or by using the fix indicated above with the back quotes.
+
+```{r}
+
+# Changes the spaces into underscore characters
+
+names(chi) <- gsub(" ","_",names(chi))
+
+# While we are at it let's change the variables to lower case
+
+names(chi) <- tolower(names(chi))
+```
+
+## Back to Summary
+
+Okay let's get back to checking out the data. Now that we know something about the **table** function we can perhaps do some more investigation. Let's look at the arrests (T or F) per month
+
+```{r}
+table(chi$arrest,chi$month)
+
+# We could even create a barplot
+
+title <- "Arrests per Month of 2013"
+barplot(table(chi$arrest,chi$month),las=2,legend=TRUE,main=title)
+```
+
+The problem here is that the months are sorted in alphabetic order. See it's stuff like this that will drive you crazy when you are working with data. We don't necessarily have to do anything about it if we are just looking at the data for the first time. I mean we can see that July, June, May, and August have the highest number of calls. But we probably want to find a way to fix this if we plan on showing this to anyone else.
+
+To fix this we'll turn the month into a factor which is a formal way of telling R that we will have some order (natural or imposed) associated with month which we already consider to be a category anyway. So let's do that. 
+
+```{r}
+chi <- mutate(chi,month=factor(chi$month,ordered=TRUE,levels=month.name)) 
+
+# Note that month.name is actually a built-in vector in R that contains the names
+# of the month in the desired order. There is also a month.abb that has the 
+# abbreviated month names
+
+# Let's validate that we turned month into an actual ordered factor
+
+str(chi$month)
+
+# So now the barplot should look "better" although the legend is messed up
+# some. 
+title <- "Arrests per Month of 2013"
+barplot(table(chi$arrest,chi$month),las=2,legend=TRUE,main=title)
+
+```
+
+## Why not use ggplot ? 
+
+We've been using Base grapics to draw this stuff although perhaps we could also use ggplot in combination with the considerable summary powers of ggplot, which creates summary tables easily also and it will work well with large data frames. 
+
+```{r}
+library(ggplot2)
+
+chi %>% group_by(arrest,month) %>% 
+  summarize(total=n()) %>% 
+  ggplot(aes(x=month,y=total,fill=arrest)) + geom_bar(stat="identity")
+
+```
+
+So that was okay and it fits nicely with what we have learned with dplyr thus far. Nowe we could also extend this graph a little more by adjusting the x labels so they don't overwrite each other. 
+
+```{r}
+chi %>% group_by(arrest,month) %>% 
+  summarize(total=n()) %>% 
+  ggplot(aes(x=month,y=total,fill=arrest)) + 
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=45)) + 
+  ggtitle("Chicago Arrests per Month in 2013")
+```
+
+We could also put the bars next to each other
+
+```{r}
+chi %>% group_by(arrest,month) %>% 
+  summarize(total=n()) %>% 
+  ggplot(aes(x=month,y=total,fill=arrest)) + 
+  geom_bar(stat="identity",position=position_dodge()) + 
+  theme(axis.text.x=element_text(angle=45)) + 
+  ggtitle("Chicago Arrests per Month in 2013")
+
+```
+
+In terms of number of calls to Police let's see how many calls there were per month and then break that down by night calls vs day calls. You can see then that calling at night is more frequent. Intuitively this makes some sense. 
+
+```{r}
+chi %>% group_by(am_pm,month) %>% 
+  summarize(total=n()) %>% 
+  ggplot(aes(x=month,y=total,fill=am_pm)) + 
+  geom_bar(stat="identity",position=position_dodge()) + 
+  theme(axis.text.x=element_text(angle=45)) + 
+  ggtitle("Calls to Police per Month in 2013")
+
+```
+
+
+## Line Graphs and Histograms
+
+Let's try something else here. The lubridate package has a function that we can use to get the numeric day of the year. For example January 5, 2012 would be the 5th day of the year. So we can could up the number of calls to the police for each day of the year and maybe plot that as a line chart. Notice here how we create the **ydays** category on the fly. We don't need to create it as part of the data frame. 
+
+```{r}
+chi %>% mutate(ydays = yday(date)) %>% 
+  group_by(ydays) %>% summarize(total_calls=n()) %>% 
+  ggplot(aes(x=ydays,y=total_calls)) + geom_line() +
+  ggtitle("Calls per Each Day of 2012") + 
+  xlab("Day of the year 1 - 365") +
+  ylab("Total Calls to the Police")
+
+```
+
+Now if we wanted to we could split the line graph up into two different panels or "facets" as ggplot calls it. This won't take much more than what we already had before. We'll just throw in the am_pm variable.
+
+```{r}
+chi %>% 
+  mutate(ydays = yday(date)) %>% 
+  group_by(am_pm,ydays) %>% 
+  summarize(total_calls=n()) %>%
+  ggplot(aes(x=ydays,y=total_calls)) + geom_line() + facet_grid(am_pm~.)
+```
+
+That looks okay but what about changing the arrangmenet of the panels ? That's easy - we just change the formula in the **facet_grid** layer
+
+```{r}
+chi %>% 
+  mutate(ydays = yday(date)) %>% 
+  group_by(am_pm,ydays) %>% 
+  summarize(total_calls=n()) %>%
+  ggplot(aes(x=ydays,y=total_calls)) + geom_line() + facet_grid(.~am_pm)
+
+```
+
+
+Now we could also use a function called **hour** which given the date will extract the hour of the day that the call to the police occurred. Let's generate a histogram of calls to the police based on the hour of the day.
+
+```{r}
+
+chi %>% mutate(hod=hour(date)) %>% 
+  ggplot(aes(x=hod)) + 
+  geom_histogram() + 
+  stat_bin(bins=20) +
+  ggtitle("Call Count by Hour of the Day") +
+  xlab("Hour of the day 0 - 23")
+
+```
+
+## What Types of Crime Do We See ? 
+
+Next up lets look at the counts for the most frequently committed types of crimes. This will help us understand what our risks are should we consider living in Chicago. For the moment let's revert back to using native R and Base graphics for this one. I have a point I would like to make here so bear with me.
+
+First we can create a table of all the Crime types by using the primary_type variable.
+
+```{r}
+table(chi$primary_type)
+
+# Let's sort this. Remember the sort goes from lowest count to highest
+# so we'll need to reverse the sort
+
+myt <- rev(sort(table(chi$primary_type)))
+
+# So the following will give us the top 10 crime types in Chicago
+
+myt[1:10]
+
+
+# We could even plot this directly
+
+barplot(myt,las=2,cex.names =0.6,cex.axis=0.7)
+
+# What about just plotting the top 10 
+
+barplot(myt[1:10],las=2,cex.names =0.6,cex.axis=0.7)
+
+```
+
+Well okay that was relatively straightforward buy what about using ggplot for this instead ? Let's see how we would do that. It seems pretty easy and it is but the bars aren't sorted. Why is that ? in short this looks pretty bad. We can fix the axis labels and rotate them if we want to. 
+
+
+```{r}
+
+chi %>% group_by(primary_type) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count)) %>%  
+  ggplot(aes(x=primary_type,y=count)) + geom_bar(stat="identity")
+
+```
+
+But why aren't the bars sorted ? With Base graphics we sorted our table and then passed it to the barchart function and it worked as expected. With dplyr we used the **arrange** function to sort the table but that order didn't carry over into the plot. So now what ? Turns out we have to inercept the table that comes out of summarize. This is a case where Base graphics is easier to use but let's see how to do this in ggplot. 
+
+```{r}
+chi %>% group_by(primary_type) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count)) ->  crime_info
+
+# Next we'll use the reorder function to impose an order on the table
+
+crime_info %>% 
+  ggplot(aes(x=reorder(primary_type,-count),y=count))+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+We could have done that all in one go. Let's do that and also just pull out the top 20 crimes types and focus on them some. We'll also use a new (at least to us) dplyr verb called **slide** that let's us pull out a specific number of rows from a data frame or a dplyr summarize operation.
+
+```{r}
+chi %>% group_by(primary_type) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=reorder(primary_type,-count),y=count)) +     geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+So this just gives us the total number of police calls relating to a given crime type. It doesn't say very much about the total number of arrests that were made.
+
+
+```{r}
+chi %>% group_by(arrest,primary_type) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=reorder(primary_type,-count),y=count,fill=arrest)) +     geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+This is illuminating in that almost all the calls relating to NARCOTICS seem to result in an arrest. Let's examine these offenses in greater detail since they don't seem to fit the pattern. That is most of the other crime reports don't seem to result in arrest expcept maybe prostituion, criminal trespass, and weapons violation. We can drill down some more. Let's slice out the lower 10 of the top 20. 
+
+
+```{r}
+chi %>% group_by(arrest,primary_type) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count)) %>% 
+  slice(10:20) %>% 
+  ggplot(aes(x=reorder(primary_type,-count),y=count,fill=arrest)) +     geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Oh so now we see that there are several areas that tend to result in an arrest. Narcotics isn't the only one at all. This seems a little weird to me though because ALL prostituion calls result in an arrest. Let's filter out some of these crimes to see what is going on.
+
+```{r}
+filter(chi,grepl("PROST",description)) %>% 
+  group_by(arrest) %>% 
+  summarize(cnt=n())
+
+#
+
+filter(chi,grepl("BURGLARY",primary_type)) %>% 
+  group_by(arrest) %>% 
+  summarize(cnt=n())
+
+```
+
+
+
+More stuf
+
+```{r}
+chi %>% filter(grepl("NARCOTICS",primary_type)) %>% 
+  group_by(description) %>%
+  summarize(count=n()) %>%
+  arrange(desc(count)) %>% 
+  slice(1:10) %>% 
+  ggplot(aes(x=reorder(description,-count),y=count)) +      geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+So looks like we have lots of people getting arrested for possession of cannabis of 30 grams or less. Heroin, Crack, and Cocaine arrests are next in line but the bulk of arrests relate to cannabis. Now there are also some arrests relating to Cannabis possession with amounts greater than 30 Grams.
+
+```{r}
+
+# Most of the > 30GMS cannabis possession happens in the STREET
+
+chi %>% filter(grepl("CANNABIS MORE THAN 30GMS",description)) %>%
+  group_by(location_description) %>% 
+  summarize(count=n()) %>%
+  arrange(desc(count))
+
+
+```
+
+Next we will put some of these locations on a map. Let's look only at the arrests taking place in the street for over 30GMs possession. 
+
+```{r}
+
+# The following reveals that there are 284 violations. 
+chi %>% filter(grepl("CANNABIS MORE THAN 30GMS",description)) %>%
+  filter(grepl("STREET",location_description)) -> street
+  
+nrow(street)
+
+# Let's map these using R googleVis
+
+street <- mutate(street,latlon = paste(round(latitude,2),round(longitude,2),sep=":"))
+street <- mutate(street,tip = paste(block,"District:",district,"Ward:",ward,"<BR>",sep=" "))
+
+library(googleVis)
+
+narcplot <- gvisMap(street,"latlon","tip")
+plot(narcplot)
+```
+
+
+
+
+
+
+END
+
+
+
+
