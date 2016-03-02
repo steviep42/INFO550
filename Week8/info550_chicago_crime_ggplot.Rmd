@@ -137,7 +137,7 @@ So it seems to me that the top 5 areas, at least by FBI codes, are:
 * Drug Abuse
 * Misc Non-Index Offense
 
-But we'll dig deeper into the types of crimes in a little bit. 
+But we'll dig deeper into the types of crimes in a little bit. Understand also that the FBI has a more general classification than the descriptions in the Chicago data. We need a criminologist to comment !
 
 
 ```{r}
@@ -475,11 +475,30 @@ plot(narcplot)
 ```
 
 
+```{r eval=FALSE}
+
+# I use the as.Date function to chop out just the YMD
+
+chi %>% mutate(date=as.Date(date)) %>% group_by(date) %>% summarize(count=n()) -> chiout
 
 
+Cal <- gvisCalendar(chiout, 
+                    datevar="date", 
+                    numvar="count",
+                    options=list(width=900,height=600,
+                        title="Daily Crime report",
+                        height=320,
+                        calendar="{yearLabel: { fontName: 'Times-Roman',
+                               fontSize: 32, color: '#1A8763', bold: true},
+                               cellSize: 13,
+                               cellColor: { stroke: 'red', strokeOpacity: 0.2 },
+                               focusedCellColor: {stroke:'red'}}")
+)
+plot(Cal)
 
 
-END
+```
+
 
 
 
