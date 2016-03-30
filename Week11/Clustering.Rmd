@@ -219,7 +219,7 @@ ggplot(mtcars,aes(x=wt,y=mpg,fill=labs)) +
        geom_point(pch=23,size=3.0) +
        ggtitle("4 Clusters, Dist: Euclidean, Method: ward.D2")
 
-table(cluster=mtcars_4,species=mtcars$cyl)
+table(cluster=mtcars_4,cyls=mtcars$cyl)
 ```
 
 ## K-Means Clustering
@@ -441,3 +441,5 @@ diab <- read.csv(url,header=F)
 head(diab)
   
 names(diab) <- c("numpreg","glucose","dbp","tsk","thrserum","bmi","dpf","age","class")
+```
+

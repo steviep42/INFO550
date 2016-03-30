@@ -1,3 +1,59 @@
+###
+# mtcars knn primer
+
+# We want to predict what cars are automatic or manual based on 
+# other attributes from the data
+
+percent <- ceiling(nrow(mtcars)*0.80)
+
+train.idx <- sample(1:nrow(mtcars),percent,F)
+
+train.mtcars <- mtcars[train.idx,] 
+test.mtcars  <- mtcars[-train.idx,]
+
+preds <- knn(train.mtcars[,-9],test.mtcars[,-9],mtcars[train.idx,]$am)
+
+table("Predictions" = preds, Actual= test.mtcars[,"am"])
+
+
+mytrainer <- function(fraction=0.80, iterations=10) {
+  
+  retlist <- list()
+  
+  for (ii in 1:iterations) {
+    percent <- ceiling(nrow(mtcars)*fraction)
+    train.idx <- sample(1:nrow(mtcars),percent,F)
+    
+    train.mtcars <- mtcars[train.idx,] 
+    test.mtcars  <- mtcars[-train.idx,]
+    
+    preds <- knn(train.mtcars[,-9],test.mtcars[,-9],mtcars[train.idx,]$am)
+    
+    out <- table("Predictions" = preds, Actual= test.mtcars[,"am"])
+    if (prod(dim(out)) != 4) {
+      accuracy <- 0
+    } else {
+      accuracy <- (out[1,1]+out[2,2])/sum(out)
+    }
+    
+    retlist[[ii]] <- list(percent=fraction,
+                          train=train.mtcars,
+                          test=test.mtcars,
+                          preds=preds,
+                          table=out,
+                          accuracy=accuracy)
+  }
+  return(retlist)
+}
+
+mypreds <- mytrainer()
+
+sapply(mypreds, function(x) x$accuracy)
+
+
+###
+
+
 library(tm)
 library(SnowballC)
 library(dplyr)
@@ -110,6 +166,13 @@ split <- sample.split(tweetsSparse$Negative, SplitRatio = 0.7)
 trainSparse <- subset(tweetsSparse, split==TRUE)
 testSparse  <- subset(tweetsSparse, split==FALSE)
 
+# Look at KNN
+
+preds <- knn(trainSparse[,-310],testSparse[,-310],trainSparse[,310])
+
+knnout <- table("Predictions" = preds, Actual= testSparse[,310])
+
+(knnacc <- round(sum(diag(knnout))/sum(knnout),2))
 
 # Build a CART model
 
@@ -123,7 +186,8 @@ prp(tweetCART)
 # Evaluate the performance of the model
 predictCART <- predict(tweetCART, newdata=testSparse, type="class")
 
-table(actual=testSparse$Negative, predicted=predictCART)
+cartout <- table(actual=testSparse$Negative, predicted=predictCART)
+(cartacc <- round(sum(diag(cartout))/sum(cartout),2))
 
 # Compute accuracy
 
@@ -147,7 +211,8 @@ tweetRF <- randomForest(Negative ~ ., data=trainSparse)
 
 predictRF <- predict(tweetRF, newdata=testSparse)
 
-table(actual=testSparse$Negative, predicted=predictRF)
+RFout <- table(actual=testSparse$Negative, predicted=predictRF)
+(RFacc <- round(sum(diag(RFout))/sum(RFout),2))
 
 # Accuracy:
 # (293+21)/(293+7+34+21)
