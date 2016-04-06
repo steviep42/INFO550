@@ -42,7 +42,7 @@ docs <- tm_map(docs, removePunctuation)
 docs <- tm_map(docs, stripWhitespace)
 
 # Text stemming
-# docs <- tm_map(docs, stemDocument)
+docs <- tm_map(docs, stemDocument)
 
 # Create the Term Document Matrix
 
@@ -98,7 +98,7 @@ sum(diag(out))/sum(out)
 
 # Let's set up a function that will help us do this a few times
 
-mytrainer <- function(fraction=0.80, iterations=10) {
+mytrainer <- function(fraction=0.80, iterations=10, k=2) {
   
   retlist <- list()
   
@@ -109,7 +109,7 @@ mytrainer <- function(fraction=0.80, iterations=10) {
     train.mtcars <- mtcars[train.idx,] 
     test.mtcars  <- mtcars[-train.idx,]
     
-    preds <- knn(train.mtcars[,-9],test.mtcars[,-9],mtcars[train.idx,]$am)
+    preds <- knn(train.mtcars[,-9],test.mtcars[,-9],mtcars[train.idx,]$am,k=k)
     
     out <- table("Predictions" = preds, Actual= test.mtcars[,"am"])
     if (prod(dim(out)) != 4) {
@@ -128,7 +128,7 @@ mytrainer <- function(fraction=0.80, iterations=10) {
   return(retlist)
 }
 
-mypreds <- mytrainer()
+mypreds <- mytrainer(k=12)
 
 sapply(mypreds, function(x) x$accuracy)
 
