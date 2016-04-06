@@ -1,3 +1,5 @@
+# INFO 550 Wk 13 - some considerations
+
 rn <- rnorm(1000,10)
 
 mean(sample(rn,replace=T))
