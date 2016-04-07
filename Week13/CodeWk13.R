@@ -2,10 +2,29 @@
 
 rn <- rnorm(1000,10)
 
+x <- 1.003234
+mysummmary <- function(x=rnorm(100)) {
+
+  # mysummary - to compute some summaries
+  # INPUT: x - a vector of some values
+  # OUTPUT: retvec - a vector of a mean and a sd
+
+  newfunc <- function(y) {
+    return(y=log(y))
+  }
+
+  x <- newfunc(x)
+  retvec <- c(mean=mean(x),sd=sd(x))
+
+  # One return statement if any
+  return(list(xvec=x,vec=retvec))
+}
+
+
 mean(sample(rn,replace=T))
 
 
-n <- 100
+n <- 10000
 somevec <- vector()
 length(somevec) <- n
 for (ii in 1:n) {
@@ -34,7 +53,7 @@ for (ii in 1:n) {
 
   if ((length(somevec) > 50) & (length(somevec) %% 75 == 0)) {
    plot(density(somevec))
-   Sys.sleep(0.5)
+   Sys.sleep(1.5)
   }
 }
 
@@ -50,7 +69,7 @@ plot(density(somevec))
 
 # time these two
 
-boot1 <- function(nt=100000) {
+boot1 <- function(nt=1000) {
   n <- nt
   somevec <- vector()
   length(somevec) <- nt
@@ -62,7 +81,7 @@ boot1 <- function(nt=100000) {
 }
 
 
-boot2 <- function(nt=100000) {
+boot2 <- function(nt=1000) {
   n <- nt
   somevec <- vector()
   for (ii in 1:n) {
@@ -189,6 +208,9 @@ apply(mymat,2,mean,trim=0.5)
 
 apply(mymat,2,mean,trim=0.5, na.rm=T)
 
+myspecmean <- function(x) {
+  return(mean(x,trim=0.5,na.rm=T))
+}
 ### write our own functions
 
 mymat[,1]/sum(mymat[,1])
@@ -243,7 +265,7 @@ chisq.test(table(cointab),p=c(.5,.5))
 
 table(cointab)
 
-cointab <- flips <- sample(c("H","T"),1000000,T,prob=c(.70,.30))
+cointab <- sample(coins,1000000,T,prob=c(.70,.30))
 
 table(cointab)
 
@@ -285,7 +307,26 @@ apply((replicate(100,mcoins(times=10))),2,function(x)
 mcoins <- function(rep=10,times=1000,probs=c(.5,.5)) {
 
   for (ii in 1:rep) {
-      cointab <- replicate(sample(c("H","T"),times,T,prob=probs)
+      cointab <- replicate(rep,sample(c("H","T"),times,T))
   }
   return(table(cointab))
 }
+
+# Gratuitous experiments with apply, tapply, sapply
+
+tapply(mtcars$mpg,mtcars$cyl,mean)
+
+split(mtcars,mtcars$cyl) -> myl
+
+lapply(myl, function(x) mean(x$mpg))
+
+unlist(lapply(myl, function(x) mean(x$mpg)))
+
+sapply(myl, function(x) mean(x$mpg))
+
+newmat <- matrix(rnorm(100),10,10)
+
+apply(newmat,2,range)
+
+apply(apply(newmat,2,range),2,sum)
+
