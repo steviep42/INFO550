@@ -312,7 +312,7 @@ mcoins <- function(rep=10,times=1000,probs=c(.5,.5)) {
   return(table(cointab))
 }
 
-# Gratuitous experiments with apply, tapply, sapply
+## Gratuitous experiments with apply, tapply, sapply
 
 tapply(mtcars$mpg,mtcars$cyl,mean)
 
