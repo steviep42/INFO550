@@ -1,0 +1,170 @@
+---
+title: "tidy data"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+## Long vs wide formats for data ? We hear this alot but not lots of discussion about it
+
+Here is some data in a wide format. It is called wide because basically all the information about a given observation is on a single line. This format is usually quite good for humans to digest though if there are many columns then things get to be unweildy. But let's start with this idea. 
+```{r echo=FALSE}
+data_wide <- read.table(header=TRUE, text='
+ subject sex control cond1 cond2
+       1   M     7.9  12.3  10.7
+       2   F     6.3  10.6  11.1
+       3   F     9.5  13.1  13.8
+       4   M    11.5  13.4  12.9
+')
+# Make sure the subject column is a factor
+data_wide$subject <- factor(data_wide$subject)
+
+data_wide
+```
+
+How would we make this into "long data" ? Make it look like the following. Okay well there is the question of why would you do this. It depends. Some graphics of visualization might be easier to do but it all depends. But the data is still usable it's just that now we have a variable that has possible values
+
+```{r echo=FALSE}
+data_wide %>% gather(contcond,measurement,control:cond2)
+```
+
+```{r}
+data_wide %>% gather(contcond,measurement,control:cond2)
+```
+
+Let's look at an application of this that makes some sense. What if we wanted a boxplot of measurements for each of the control, condition 1, and condition 2. If it's in the wide format it's not so easy. But in the long format it is in fact easy
+
+```{r}
+data_wide %>% gather(contcond,measurement,control:cond2) %>%
+  ggplot(aes(x=contcond,y=measurement)) + geom_boxplot()
+```
+
+
+Now if we started with data that was in long format how would we get to wide ? There is a function called spread that will help with that process. So we have this:
+
+```{r echo=FALSE}
+data_wide %>% gather(contcond,measurement,control:cond2) -> data_long
+```
+
+```{r}
+data_long
+```
+
+```{r}
+data_long %>% data_long %>% spread(contcond,measurement)
+
+```
+
+
+## What is tidy data ? 
+
+There are some formal definitions but inuitively it would be any data in any format that lends itself well to easy analysis and visualization. Ideally it would require minimal cleaning and work before being able to analyze it although rarely do we have the luxury of getting information how we want it ? Why ? 
+
+### What is tidy data: A more formal idea
+
+How many variables are there in this data ? Name them.
+
+
+|        	| Pregnant 	| Not Pregnant 	|
+|--------	|----------	|--------------	|
+| Male   	| 0        	| 5            	|
+| Female 	| 1        	| 4            	|
+|        	|          	|              	|
+
+Would it be easier to do if the information was presented differently ? 
+
+```{r echo=FALSE}
+
+myt <- as.table(rbind(c(0,5),c(1,4)))
+rownames(myt) <- c("male","female")
+colnames(myt) <- c("yes","no")
+myd <- data.frame(myt)
+names(myd) <- c("gender","pregnant","frequency")
+
+myd
+```
+
+Let's agree on some naming conventions that should help us. I think we already have an intutive idea about what these mean but just in case:
+
+| Storage | Meaning  	
+|--------	|----------	
+| Table/File   	| Data Set/Frame       |	
+| Rows 	| Observations       | 	
+| Columns       	| Variables         |	
+
+
+
+## What are some causes of messiness ?
+- Column headers are values, not variable names
+- Multiple variables are stored in one column
+- Multuple types of experimental unit stored in the same table
+- One type of experimental unit stored in multiple tables
+
+Let's take a look at a couple of these.  Real world data comes to us in all forms and we have to be able to figure out how to transform the information accordingly
+
+## Column headers are values, not variable names
+
+Here is an example wherein each column is actally part of a larger interval describing income. this is basically a summary table. Conceptually we have one big column that could be called "income" with each column representing an interval of that income. In some ways this is a matrix - well it could be so if we have a mind to treat it like that then we could definitely work with the data. However, as is, the column names are not actual unique variables.  
+
+```{r}
+url <- "https://raw.githubusercontent.com/hadley/tidyr/master/vignettes/pew.csv"
+pew <- tbl_df(read.csv(url, stringsAsFactors = FALSE, check.names = FALSE))
+
+pew
+```
+
+What are the variables in this data set ? It's like our earlier example so one of them would be frequency. The other two are religion and income. We use the tidyr package to help us "gather" the 
+non variable columns into a "key value pair".
+
+```{r}
+pew %>% gather(income, frequency,-religion)
+
+```
+
+How did that work ? We created our own label called "income" as a "key" and then told the gather function that there should be a "value" column called "frequency". We want to eliminate all other columns except "religion". This form is tidy because each column represents a variable and each row represents an observation, in this case a demographic unit corresponding to a combination of religion and income.
+
+## Multiple variables stored in one column
+
+
+```{r}
+url <- "https://raw.githubusercontent.com/hadley/tidyr/master/vignettes/tb.csv"
+tb <- tbl_df(read.csv(url, stringsAsFactors = FALSE))
+
+```
+
+After gathering columns, the key column is sometimes a combination of multiple underlying variable names. This happens in the tb (tuberculosis) dataset, shown below. This dataset comes from the World Health Organisation, and records the counts of confirmed tuberculosis cases by country, year, and demographic group. The demographic groups are broken down by sex (m, f) and age (0-14, 15-25, 25-34, 35-44, 45-54, 55-64, unknown). The first thing to do is to gather up the non variable columns:
+
+```{r}
+tb2 <- tb %>% 
+  gather(demo, n, -iso2, -year, na.rm = TRUE)
+tb2
+
+```
+
+Column headers in this format are often separated by a non-alphanumeric character (e.g. ., -, _, :), or have a fixed width format, like in this dataset. separate() makes it easy to split a compound variables into individual variables. You can either pass it a regular expression to split on (the default is to split on non-alphanumeric columns), or a vector of character positions. In this case we want to split after the first character:
+
+```{r}
+tb3 <- tb2 %>% 
+  separate(demo, c("sex", "age"), 1)
+tb3
+
+```
+
+
+## mtcars
+
+```{r}
+mtcars$name <- rownames(mtcars)
+rownames(mtcars) <- NULL
+
+mtcars %>% separate(name,c("make","model"),extra="merge")
+
+mtcars %>% separate(name,c("make","model"),extra="merge") %>% group_by(make) %>% summarize(avg=mean(mpg)) %>% arrange(desc(avg))
+```
+
