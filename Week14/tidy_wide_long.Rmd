@@ -57,7 +57,7 @@ data_long
 ```
 
 ```{r}
-data_long %>% data_long %>% spread(contcond,measurement)
+data_long %>% spread(contcond,measurement)
 
 ```
 
@@ -97,7 +97,6 @@ Let's agree on some naming conventions that should help us. I think we already h
 | Table/File   	| Data Set/Frame       |	
 | Rows 	| Observations       | 	
 | Columns       	| Variables         |	
-
 
 
 ## What are some causes of messiness ?
@@ -156,6 +155,30 @@ tb3
 
 ```
 
+## Alternative format to the above
+
+As mentioned in class the original tb dataframe has columns which encode more than one variable. There are two pieces of information within the column names - gender and age range. The tabular format we have by default
+could be read by someone and with some chart annotation they could be walked through it. As I showed (well it's Hadley Wickham's example) the gather command could be used to make the data longer and easier to work with depending on intent. 
+
+One thing we could use that doesn't require any additional packages is to use a list wherein each element is a data frame corresponding to gender. This is entirely acceptable and could easily be with the sapply or lapply functions.
+
+```{r}
+tblist <- list()
+
+tblist$m <- tb %>% select(1:12)
+tblist$f <- tb %>% select(c(1,2,13:22))
+
+names(tblist)
+
+```
+
+Now we still might want to gather the columns in each data frame into a single column matchin the age range.
+
+```{r}
+tblonglist <- lapply(tblist, function(x) gather(x,demo,n,-iso2,-year,na.rm=T))
+
+```
+
 
 ## mtcars
 
@@ -165,6 +188,7 @@ rownames(mtcars) <- NULL
 
 mtcars %>% separate(name,c("make","model"),extra="merge")
 
-mtcars %>% separate(name,c("make","model"),extra="merge") %>% group_by(make) %>% summarize(avg=mean(mpg)) %>% arrange(desc(avg))
+mtcars %>% separate(name,c("make","model"),extra="merge") %>% 
+  group_by(make) %>% summarize(avg=mean(mpg)) %>% arrange(desc(avg))
 ```
 
