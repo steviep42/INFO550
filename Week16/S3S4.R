@@ -46,11 +46,6 @@ plot
   
 methods(plot)
 
-
-plot
-
-methods(plot)
-
 summary
 
 grep("data.frame",methods(summary),value=TRUE)
@@ -126,8 +121,7 @@ age <- c(33,35,37,39,41,43,45)
 weight <- c(118,121,132,119,111,128,132)
 
 
-mary <- aHomoSapien(name="Mary",age=age,height=62,
-weight=weight,race="caucasian")
+mary <- aHomoSapien(name="Mary",age=age,height=62, weight=weight,race="caucasian")
 
 class(mary)
 
@@ -151,31 +145,29 @@ plot(john)
 plot(mary)
 
 summary.homosapien <- function(obj) {
-str <- paste(obj$name,"had a mean weight of",
-round(mean(obj$info$weight),2),"lbs over a period of",
-max(obj$info$age)-min(obj$info$age),"years",sep=" ")
-print(str)
+  str <- paste(obj$name,"had a mean weight of",
+  round(mean(obj$info$weight),2),"lbs over a period of",
+  max(obj$info$age)-min(obj$info$age),"years",sep=" ")
+  print(str)
 }
 
 summary(john)
 
-
 summary(mary)
 
 download.file("http://steviep42.bitbucket.org/YOUTUBE.DIR/chi_crimes.csv","chi_crimes.csv")
-chi <- read.csv("chi_crimes.csv",header=T,sep=",",stringsAsFactors=FALSE)
-chi <- chi[complete.cases(chi),]  # Get rid of incomplete cases
-library(lubridate)
-chi$Date <- parse_date_time(chi$Date,'%m/%d/%Y %I:%M:%S %p')
 
 makecrime <- function(x,y,z) {
-  crimes <- list(id=x, source=y, data=z)
+  stopifnot(require(lubridate))
+  tmp <- read.csv(z,header=T,sep=",",stringsAsFactors=FALSE)
+  tmp <- tmp[complete.cases(tmp),]
+  tmp$Date <- parse_date_time(tmp$Date,'%m/%d/%Y %I:%M:%S %p')
+  crimes <- list(id=x, source=y, data=tmp)
   class(crimes) <- "crime"
   return(crimes)
 }
 
-chicrimes <- makecrime("Chicago,IL","https://data.cityofchicago.org/",chi)
-
+chicrimes <- makecrime("Chicago,IL","https://data.cityofchicago.org/","chi_crimes.csv")
 
 print.crime <- function(object) {
   header <- paste("CITY,STATE:",object$id,"SOURCE:",object$source,sep=" ")
@@ -203,9 +195,7 @@ plot.crime <- function(object,...) {
 
 print(chicrimes)
 
-
 plot(chicrimes)
-
 
 
 mylm <- lm(mpg~wt, data=mtcars)
@@ -215,7 +205,7 @@ class(mylm)
 plot(mylm)    # Plot finds the right method based on the class of the object
 
 getRange <- function(obj,start,end,...) {
-UseMethod("getRange")
+ UseMethod("getRange")
 }
 
 
@@ -240,9 +230,10 @@ age <- c(33,35,37,39,41,43,45)
 
 weight <- c(172,178,181,185,192,200,205)
 
-john <- new("homosapien",name="John",
-info=data.frame(age=age,weight=weight),
-race="caucasian")
+john <- new("homosapien",name="John", 
+             info=data.frame(age=age,weight=weight),
+             race="caucasian")
+
 slotNames(john)
 
 
@@ -258,22 +249,20 @@ cat("Name: ",object@name,"\n")
 print(object@info)
 })
 
-
-
 john
 
 setMethod(f = "plot", signature = "homosapien", 
-definition = function(x,y,...) {
-main <- "Weight vs Age"
-xlab <- "Age"
-ylab <- "Weight in Lbs"
-name <- x@name
-hold <- x@info
-x <- hold$age
-y <- hold$weight
-main <- paste(main,"for",name,sep=" ")
-plot(x,y,main=main,type="l",xlab=xlab,ylab=ylab)
-grid()
+  definition = function(x,y,...) {
+  main <- "Weight vs Age"
+  xlab <- "Age"
+  ylab <- "Weight in Lbs"
+  name <- x@name
+  hold <- x@info
+  x <- hold$age
+  y <- hold$weight
+  main <- paste(main,"for",name,sep=" ")
+  plot(x,y,main=main,type="l",xlab=xlab,ylab=ylab)
+  grid()
 })
 
 
@@ -284,10 +273,10 @@ plot(john)
 setGeneric("getRange",function(object,start,end) standardGeneric("getRange") )
 
 setMethod("getRange","homosapien",
-function(object,start,end) {
-holdf <- object@info
-retdf <- holdf[holdf$age >= start & holdf$age <= end,]
-return(retdf)
+  function(object,start,end) {
+  holdf <- object@info
+  retdf <- holdf[holdf$age >= start & holdf$age <= end,]
+  return(retdf)
 })
 
 getRange(john,35,41)
@@ -295,38 +284,31 @@ getRange(john,35,41)
 setGeneric("getRange",function(object,start,end) standardGeneric("getRange") )
 
 setMethod("getRange","homosapien",
-function(object,start,end) {
-holdf <- object@info
-retdf <- holdf[holdf$age >= start & holdf$age <= end,]
-newhs <- new("homosapien",name="John",
-info=retdf,race="caucasian")
-return(newhs)
+  function(object,start,end) {
+  holdf <- object@info
+  retdf <- holdf[holdf$age >= start & holdf$age <= end,]
+  newhs <- new("homosapien",name="John",
+  info=retdf,race="caucasian")
+  return(newhs)
 })
 
 plot(getRange(john,35,41))
 
 
 setClass("homosapien", representation(name="character",
-info="data.frame",
-height="numeric",
-race="character") )
+  info="data.frame",
+  height="numeric",
+  race="character") )
 
 age <- c(33,35,37,39,41,43,45)
 weight <- c(172,178,181,185,192,200,205)
 
-john <- new("homosapien",name="John",
-info=data.frame(age=age,weight=weight),
-race="caucasian")
+john <- new("homosapien",name="John", 
+             info=data.frame(age=age,weight=weight),race="caucasian")
 
 # That was okay but check this out:
 
-john <- new("homosapien", name=23, 
-info=data.frame(age=age,weight=weight),race="caucasian")
-
-Error in validObject(.Object) :
-invalid class ``homosapien'' object: 1: invalid object for slot ``name'' in class 
-''homosapien'': got class ``numeric'', should be or extend class ''character''
-
+john <- new("homosapien", name=23, info=data.frame(age=age,weight=weight),race="caucasian")
 
 setClass("homosapien", representation(name="character",
 info="data.frame",
@@ -334,18 +316,18 @@ height="numeric",
 race="character") )
 
 setValidity("homosapien",
-function(object) {
-retval <- TRUE
-if (!is.character(object@name)) {
-print("Name should be character")
-retval <- FALSE
-}
-if ( length(names(object@info)) != 2 ) {
-print("Data frame is not valid")
-retval <- FALSE
-}
-return(retval)
-}
+  function(object) {
+  retval <- TRUE
+  if (!is.character(object@name)) {
+  print("Name should be character")
+  retval <- FALSE
+  }
+  if ( length(names(object@info)) != 2 ) {
+  print("Data frame is not valid")
+  retval <- FALSE
+  }
+  return(retval)
+  }
 )
                                          
                                         
